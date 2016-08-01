@@ -25,6 +25,8 @@
  *
  */
 
+#include <ArduinoJson.h>
+#include <SoftwareSerial.h>
 #include <SPI.h>
 #include <MFRC522.h>
 
@@ -35,6 +37,7 @@ volatile bool hasStdby = false;
 #define SS_PIN              10          // Configurable, see typical pin layout above
 #define BUZZER_PIN          8
 #define STDBY_TOGGLE_PIN    7
+#define READY_TOGGLE_PIN    6
 #define SUCCESS             0
 #define STD_BY              2
 #define FAIL_REPETITION     4
@@ -58,19 +61,25 @@ byte knownKeys[NR_KNOWN_KEYS][MFRC522::MF_KEY_SIZE] =  {
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  // 00 00 00 00 00 00
 };
 
+SoftwareSerial Serial1 = SoftwareSerial(A0,A1);
+String clean_res = "";
+char cTmp;
+
 /*
  * Initialize.
  */
 void setup() {
   
     pinMode(STDBY_TOGGLE_PIN, INPUT);
+    pinMode(READY_TOGGLE_PIN, INPUT);
     if(digitalRead(STDBY_TOGGLE_PIN) == HIGH){
         hasStdby = true;
     }
 
-    Serial.begin(19200);         // Initialize serial communications with the PC
+    Serial.begin(115200);         // Initialize serial communications with the PC
     while (!Serial);            // Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)  
-        
+    Serial1.begin(19200);
+    //Serial1.setTimeout(3000);
     SPI.begin();                // Init SPI bus
     mfrc522.PCD_Init();         // Init MFRC522 card
 
@@ -87,17 +96,15 @@ void setup() {
  */
 void dump_byte_array(byte *buffer, byte bufferSize) {
     for (byte i = 0; i < bufferSize; i++) {
-        Serial.print(buffer[i], HEX);
+        clean_res += String(buffer[i], HEX);
     }
-    Serial.print(buffer[bufferSize-1]);
-    Serial.print('\0');
 }
 
 void ringBuzzer(uint8_t mode = 1){
    
   if(mode == SUCCESS){
     digitalWrite(BUZZER_PIN, HIGH);
-    delay(150);
+    delay(80);
     digitalWrite(BUZZER_PIN, LOW);
   }
   else if(mode == STD_BY){
@@ -105,9 +112,9 @@ void ringBuzzer(uint8_t mode = 1){
     for(uint8_t iLoop = 0; iLoop < 2; iLoop++){
 
       digitalWrite(BUZZER_PIN, HIGH);
-      delay(100);
+      delay(60);
       digitalWrite(BUZZER_PIN, LOW);
-      delay(100);
+      delay(60);
     }
 
     delay(3000);
@@ -140,12 +147,23 @@ void loop() {
     if ( ! mfrc522.PICC_ReadCardSerial())
         return;
 
-    dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
-    Serial.println("");  
-    
+    clean_res = "";
     ringBuzzer(SUCCESS);
+    dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
+    Serial.print("@");  
+    Serial.println(clean_res);
+    Serial1.print("@");  
+    Serial1.println(clean_res);
+
+    Serial1.println("Processing");
+    while(digitalRead(READY_TOGGLE_PIN) != HIGH){
+        ;
+    };
     
-    delay(3000);
+    clean_res = Serial1.readString();
+    Serial.println(clean_res);
+    Serial.println("Ready");
+
     //resetFunc();
 }
 
