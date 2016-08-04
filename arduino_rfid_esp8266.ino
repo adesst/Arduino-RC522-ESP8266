@@ -183,10 +183,12 @@ void loop() {
     dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
     Serial.print("@");  
     Serial.println(clean_res);
+
     Serial1.print("@");  
     Serial1.println(clean_res);
 
     Serial.println("Processing");
+
     lcd.home();
     lcd.clear();
     lcd.print(lcdAlignString("Sedang diproses"));
@@ -196,7 +198,7 @@ void loop() {
     
     clean_res = Serial1.readString();
 
-    StaticJsonBuffer<256> jsonBuffer;
+    StaticJsonBuffer<160> jsonBuffer;
     JsonObject &jsonObject = jsonBuffer.parseObject(clean_res);
     String msg;
     uint8_t error = jsonObject["error"];
