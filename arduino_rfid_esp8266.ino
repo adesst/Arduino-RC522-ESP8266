@@ -29,6 +29,9 @@
 #include <SoftwareSerial.h>
 #include <SPI.h>
 #include <MFRC522.h>
+#include <Wire.h>
+#include <LCD.h>
+#include <LiquidCrystal_I2C.h>
 
 volatile bool readCard = false;
 volatile bool hasStdby = false;
@@ -42,7 +45,26 @@ volatile bool hasStdby = false;
 #define STD_BY              2
 #define FAIL_REPETITION     4
 
+#define I2C_ADDR    0x27  // Define I2C Address for the PCF8574T 
+//---(Following are the PCF8574 pin assignments to LCD connections )----
+// This are different than earlier/different I2C LCD displays
+#define BACKLIGHT_PIN     3
+#define En_pin  2
+#define Rw_pin  1
+#define Rs_pin  0
+#define D4_pin  4
+#define D5_pin  5
+#define D6_pin  6
+#define D7_pin  7
+
+#define  LED_OFF  1
+#define  LED_ON  0
+
+//LCD_I2C lcd = LCD_I2C(0x27,2,16);             // Number of lines and i2c address of the display
+LiquidCrystal_I2C  lcd(I2C_ADDR,En_pin,Rw_pin,Rs_pin,D4_pin,D5_pin,D6_pin,D7_pin);
+
 MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
+void lcd_homescreen(void);
 void ringBuzzer(uint8_t);
 void (*resetFunc)(void) = 0;
 
@@ -69,7 +91,14 @@ char cTmp;
  * Initialize.
  */
 void setup() {
-  
+ 
+    lcd.begin(16,2);               // initialize the lcd 
+
+    lcd.setBacklightPin(BACKLIGHT_PIN,POSITIVE);
+    lcd.setBacklight(HIGH);
+
+    lcd_homescreen();
+
     pinMode(STDBY_TOGGLE_PIN, INPUT);
     pinMode(READY_TOGGLE_PIN, INPUT);
     if(digitalRead(STDBY_TOGGLE_PIN) == HIGH){
@@ -155,15 +184,38 @@ void loop() {
     Serial1.print("@");  
     Serial1.println(clean_res);
 
-    Serial1.println("Processing");
+    Serial.println("Processing");
+    lcd.home();
+    lcd.clear();
+    lcd.print("   Processing   ");
     while(digitalRead(READY_TOGGLE_PIN) != HIGH){
         ;
     };
     
     clean_res = Serial1.readString();
+
+    StaticJsonBuffer<160> jsonBuffer;
+    JsonObject &jsonObject = jsonBuffer.parseObject(clean_res);
+
+    lcd.home();
+    lcd.clear();
+    lcd.print("   RP ");
+
+    String cr = jsonObject["cr"];
+    lcd.print(cr);
     Serial.println(clean_res);
     Serial.println("Ready");
+    delay(2000);
 
+    lcd_homescreen();
     //resetFunc();
+}
+
+void lcd_homescreen(void){
+    lcd.clear();
+    lcd.home();
+    lcd.print("    Welcome     ");    
+    lcd.setCursor(0,1);
+    lcd.print("   RP 15,000    ");
 }
 
