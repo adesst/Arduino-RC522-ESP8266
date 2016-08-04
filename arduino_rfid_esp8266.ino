@@ -64,6 +64,8 @@ volatile bool hasStdby = false;
 LiquidCrystal_I2C  lcd(I2C_ADDR,En_pin,Rw_pin,Rs_pin,D4_pin,D5_pin,D6_pin,D7_pin);
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
+uint8_t calcStartIndex(uint8_t strLength, uint8_t lcdCol = 16);
+String lcdAlignString(String str);
 void lcd_homescreen(void);
 void ringBuzzer(uint8_t);
 void (*resetFunc)(void) = 0;
@@ -187,22 +189,41 @@ void loop() {
     Serial.println("Processing");
     lcd.home();
     lcd.clear();
-    lcd.print("   Processing   ");
+    lcd.print(lcdAlignString("Sedang diproses"));
     while(digitalRead(READY_TOGGLE_PIN) != HIGH){
         ;
     };
     
     clean_res = Serial1.readString();
 
-    StaticJsonBuffer<160> jsonBuffer;
+    StaticJsonBuffer<256> jsonBuffer;
     JsonObject &jsonObject = jsonBuffer.parseObject(clean_res);
+    String msg;
+    uint8_t error = jsonObject["error"];
+    String cr = jsonObject["cr"];
 
     lcd.home();
     lcd.clear();
-    lcd.print("   RP ");
 
-    String cr = jsonObject["cr"];
-    lcd.print(cr);
+    if( error != 0 ){
+        msg = lcdAlignString("Error INET");
+        lcd.print(msg);
+    }
+    else{
+        if( cr.length() == 0){
+            msg = lcdAlignString("Error CR");
+            lcd.print(msg);
+        }
+        else{
+            msg = lcdAlignString("Sisa saldo anda");
+            lcd.print(msg);
+            msg = lcdAlignString("Rp " + cr);
+            Serial.println(msg);
+            lcd.setCursor(0,1);
+            lcd.print(msg);
+        }
+    }
+
     Serial.println(clean_res);
     Serial.println("Ready");
     delay(2000);
@@ -214,8 +235,25 @@ void loop() {
 void lcd_homescreen(void){
     lcd.clear();
     lcd.home();
-    lcd.print("    Welcome     ");    
+    lcd.print( lcdAlignString("Selamat Datang"));    
     lcd.setCursor(0,1);
-    lcd.print("   RP 15,000    ");
+    lcd.print("   Rp 15,000    ");
 }
 
+uint8_t calcStartIndex(uint8_t strLength, uint8_t lcdCol ){
+    uint8_t tmp = ((lcdCol - strLength) / 2) ;   
+    return tmp;
+}
+
+String lcdAlignString(String str){
+    String tmp;
+    uint8_t idx = calcStartIndex( str.length() );
+
+    for(int i=0; i < idx; i++){
+        tmp += " ";
+    }
+
+    tmp += str;
+
+    return tmp;
+}
